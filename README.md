@@ -26,6 +26,14 @@ Pour s'abonner, entrez n'importe quelle URL Vinted. Le bot déterminera automati
 
 ![abo](./examples/abonner.png)
 
+### Détecter les bonnes affaires
+
+`/abonner` accepte un paramètre optionnel `remise` (en %). Quand il est renseigné, le bot calcule le prix moyen des annonces actuellement visibles sur la recherche, et n'envoie une alerte que si une nouvelle annonce est au moins `remise`% moins chère que cette moyenne. L'embed affiche alors un champ **🔥 Bonne affaire** avec le pourcentage de réduction constaté.
+
+Exemple : pour être alerté uniquement quand un article est au moins 70% moins cher que le prix moyen des articles similaires, utilisez `/abonner url:<recherche Vinted> channel:#bons-plans remise:70`.
+
+Pour cibler un article précis (ex: un sweat Ralph Lauren habituellement à ~30€, en dessous de 4€), le plus fiable reste de construire la recherche Vinted avec les filtres marque + prix max directement sur vinted.fr, puis de s'y abonner (avec ou sans `remise` en complément).
+
 ## ...et recevez vos notifications !
 
 ![notif](./examples/notif.png)

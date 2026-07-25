@@ -26,6 +26,12 @@ synchronizeSlashCommands(client, [
                 description: 'Le salon dans lequel vous souhaitez envoyer les notifications',
                 type: 7,
                 required: true
+            },
+            {
+                name: 'remise',
+                description: 'N\'alerter que si le prix est X% en dessous du prix moyen observé (bonne affaire)',
+                type: 4,
+                required: false
             }
         ]
     },
@@ -57,6 +63,14 @@ const vinted = require('vinted-api');
 
 let lastFetchFinished = true;
 
+const parsePrice = (str) => {
+    if (!str) return null;
+    const value = parseFloat(String(str).replace(/[^\d,.-]/g, '').replace(',', '.'));
+    return Number.isNaN(value) ? null : value;
+};
+
+const MIN_SAMPLE_SIZE = 5;
+
 const syncSubscription = (sub) => {
     return new Promise((resolve) => {
         vinted.search(sub.url, false, false, {
@@ -80,9 +94,22 @@ const syncSubscription = (sub) => {
                 db.set(`last_item_ts_${sub.id}`, newLastItemTimestamp);
             }
 
-            const itemsToSend = ((lastItemTimestamp && !isFirstSync) ? items.reverse() : [items[0]]);
+            let itemsToSend = ((lastItemTimestamp && !isFirstSync) ? items.reverse() : [items[0]]);
+
+            const samplePrices = res.items.map((item) => parsePrice(item.price)).filter((price) => price !== null);
+            const avgPrice = samplePrices.length >= MIN_SAMPLE_SIZE
+                ? samplePrices.reduce((a, b) => a + b, 0) / samplePrices.length
+                : null;
+
+            if (sub.remise) {
+                itemsToSend = avgPrice === null ? [] : itemsToSend.filter((item) => {
+                    const price = parsePrice(item.price);
+                    return price !== null && price <= avgPrice * (1 - sub.remise / 100);
+                });
+            }
 
             for (let item of itemsToSend) {
+                const price = parsePrice(item.price);
                 const embed = new Discord.MessageEmbed()
                     .setTitle(item.title)
                     .setURL(`https://www.vinted.fr${item.path}`)
@@ -93,6 +120,10 @@ const syncSubscription = (sub) => {
                     .addField('Taille', item.size || 'vide', true)
                     .addField('Prix', item.price || 'vide', true)
                     .addField('Condition', item.status || 'vide', true);
+                if (sub.remise && avgPrice !== null && price !== null) {
+                    const discountPercent = Math.round((1 - price / avgPrice) * 100);
+                    embed.addField('🔥 Bonne affaire', `-${discountPercent}% vs prix moyen (${avgPrice.toFixed(2)} €)`, false);
+                }
                 client.channels.cache.get(sub.channelID)?.send({ embeds: [embed], components: [
                     new Discord.MessageActionRow()
                         .addComponents([
@@ -175,14 +206,16 @@ client.on('interactionCreate', (interaction) => {
 
     switch (interaction.commandName) {
         case 'abonner': {
+            const remise = interaction.options.getInteger('remise');
             const sub = {
                 id: Math.random().toString(36).substring(7),
                 url: interaction.options.getString('url'),
-                channelID: interaction.options.getChannel('channel').id
+                channelID: interaction.options.getChannel('channel').id,
+                remise: (remise && remise > 0 && remise < 100) ? remise : null
             }
             db.push('subscriptions', sub);
             db.set(`last_item_ts_${sub.id}`, null);
-            interaction.reply(`:white_check_mark: Votre abonnement a été créé avec succès !\n**URL**: <${sub.url}>\n**Salon**: <#${sub.channelID}>`);
+            interaction.reply(`:white_check_mark: Votre abonnement a été créé avec succès !\n**URL**: <${sub.url}>\n**Salon**: <#${sub.channelID}>${sub.remise ? `\n**Bonne affaire**: alerte si le prix est au moins ${sub.remise}% en dessous du prix moyen observé` : ''}`);
             break;
         }
         case 'désabonner': {
@@ -202,7 +235,7 @@ client.on('interactionCreate', (interaction) => {
             const chunks = [];
     
             subscriptions.forEach((sub) => {
-                const content = `**ID**: ${sub.id}\n**URL**: ${sub.url}\n**Salon**: <#${sub.channelID}>\n`;
+                const content = `**ID**: ${sub.id}\n**URL**: ${sub.url}\n**Salon**: <#${sub.channelID}>${sub.remise ? `\n**Bonne affaire**: -${sub.remise}%` : ''}\n`;
                 const lastChunk = chunks.shift() || [];
                 if ((lastChunk.join('\n').length + content.length) > 1024) {
                     if (lastChunk) chunks.push(lastChunk);
