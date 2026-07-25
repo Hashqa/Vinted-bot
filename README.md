@@ -58,5 +58,10 @@ Prérequis :
 Installation :
 
 * Installer les dépendances avec `npm install`
-* Renommer le fichier `config.sample.json` en `config.json`
+* Remplir `config.json` avec vos identifiants (`adminIDs`, `guildID`)
+* Créer un fichier `.env` à la racine du projet contenant :
+  ```
+  TOKEN=votre_token_de_bot_discord
+  ```
+  Ce fichier n'est jamais envoyé sur GitHub (il est dans `.gitignore`) — c'est l'endroit où stocker le token en toute sécurité.
 * Lancer avec `node index.js`
