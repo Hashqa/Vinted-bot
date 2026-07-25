@@ -36,6 +36,42 @@ synchronizeSlashCommands(client, [
         ]
     },
     {
+        name: 'filtre',
+        description: 'Créez un filtre simple (marque + prix max) sans URL Vinted à fournir',
+        options: [
+            {
+                name: 'marque',
+                description: 'Marque à surveiller (ex: Nike, Adidas, Ralph Lauren)',
+                type: 3,
+                required: true
+            },
+            {
+                name: 'channel',
+                description: 'Le salon dans lequel vous souhaitez envoyer les notifications',
+                type: 7,
+                required: true
+            },
+            {
+                name: 'prix_max',
+                description: 'Prix maximum en euros',
+                type: 10,
+                required: false
+            },
+            {
+                name: 'mots_cles',
+                description: 'Mots-clés supplémentaires (ex: sweat, jogging, taille M)',
+                type: 3,
+                required: false
+            },
+            {
+                name: 'remise',
+                description: 'N\'alerter que si le prix est X% en dessous du prix moyen observé (bonne affaire)',
+                type: 4,
+                required: false
+            }
+        ]
+    },
+    {
         name: 'désabonner',
         description: 'Désabonnez-vous d\'une URL de recherche',
         options: [
@@ -70,6 +106,27 @@ const parsePrice = (str) => {
 };
 
 const MIN_SAMPLE_SIZE = 5;
+
+const buildVintedUrl = ({ marque, motsCles, prixMax }) => {
+    const searchText = [marque, motsCles].filter(Boolean).join(' ').trim();
+    const params = new URLSearchParams();
+    params.set('search_text', searchText);
+    params.set('order', 'newest_first');
+    if (prixMax) params.set('price_to', String(prixMax));
+    return `https://www.vinted.fr/catalog?${params.toString()}`;
+};
+
+const createSubscription = ({ url, channelID, remise }) => {
+    const sub = {
+        id: Math.random().toString(36).substring(7),
+        url,
+        channelID,
+        remise: (remise && remise > 0 && remise < 100) ? remise : null
+    };
+    db.push('subscriptions', sub);
+    db.set(`last_item_ts_${sub.id}`, null);
+    return sub;
+};
 
 const syncSubscription = (sub) => {
     return new Promise((resolve) => {
@@ -206,16 +263,25 @@ client.on('interactionCreate', (interaction) => {
 
     switch (interaction.commandName) {
         case 'abonner': {
-            const remise = interaction.options.getInteger('remise');
-            const sub = {
-                id: Math.random().toString(36).substring(7),
+            const sub = createSubscription({
                 url: interaction.options.getString('url'),
                 channelID: interaction.options.getChannel('channel').id,
-                remise: (remise && remise > 0 && remise < 100) ? remise : null
-            }
-            db.push('subscriptions', sub);
-            db.set(`last_item_ts_${sub.id}`, null);
+                remise: interaction.options.getInteger('remise')
+            });
             interaction.reply(`:white_check_mark: Votre abonnement a été créé avec succès !\n**URL**: <${sub.url}>\n**Salon**: <#${sub.channelID}>${sub.remise ? `\n**Bonne affaire**: alerte si le prix est au moins ${sub.remise}% en dessous du prix moyen observé` : ''}`);
+            break;
+        }
+        case 'filtre': {
+            const marque = interaction.options.getString('marque');
+            const prixMax = interaction.options.getNumber('prix_max');
+            const motsCles = interaction.options.getString('mots_cles');
+            const url = buildVintedUrl({ marque, motsCles, prixMax });
+            const sub = createSubscription({
+                url,
+                channelID: interaction.options.getChannel('channel').id,
+                remise: interaction.options.getInteger('remise')
+            });
+            interaction.reply(`:white_check_mark: Filtre **${marque}** créé avec succès !\n**URL générée**: <${sub.url}>\n**Salon**: <#${sub.channelID}>${prixMax ? `\n**Prix max**: ${prixMax}€` : ''}${sub.remise ? `\n**Bonne affaire**: alerte si le prix est au moins ${sub.remise}% en dessous du prix moyen observé` : ''}`);
             break;
         }
         case 'désabonner': {

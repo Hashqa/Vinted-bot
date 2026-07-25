@@ -26,6 +26,15 @@ Pour s'abonner, entrez n'importe quelle URL Vinted. Le bot déterminera automati
 
 ![abo](./examples/abonner.png)
 
+### Créer plusieurs filtres (par marque, etc.)
+
+Vous pouvez créer autant de filtres que vous voulez, chacun avec son propre salon Discord : un pour Nike, un pour Adidas, un pour Ralph Lauren, etc. Deux façons de faire :
+
+* `/filtre marque:Nike channel:#nike prix_max:20` — le plus simple, pas besoin de construire d'URL. Le bot génère lui-même la recherche Vinted à partir de la marque, des mots-clés et du prix max fournis.
+* `/abonner url:<recherche Vinted construite sur vinted.fr> channel:#nike` — pour des filtres plus précis (taille exacte, catégorie, état...) que vinted.fr sait construire mais pas `/filtre`.
+
+Les deux commandes acceptent le paramètre `remise` pour ne recevoir que les bonnes affaires (voir ci-dessous), et chaque filtre a un ID visible via `/abonnements` pour le supprimer avec `/désabonner`.
+
 ### Détecter les bonnes affaires
 
 `/abonner` accepte un paramètre optionnel `remise` (en %). Quand il est renseigné, le bot calcule le prix moyen des annonces actuellement visibles sur la recherche, et n'envoie une alerte que si une nouvelle annonce est au moins `remise`% moins chère que cette moyenne. L'embed affiche alors un champ **🔥 Bonne affaire** avec le pourcentage de réduction constaté.
