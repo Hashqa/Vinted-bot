@@ -140,10 +140,11 @@ const syncSubscription = (sub) => {
             per_page: '20'
         }).then((res) => {
             if (!res.items) {
-                console.log('Search done bug got wrong response. Promise resolved.', res);
+                console.log(`❌ Recherche ${sub.id} (${sub.marque || sub.url}) : réponse invalide de Vinted.`, res);
                 resolve();
                 return;
             }
+            console.log(`🔍 Recherche ${sub.id} (${sub.marque || sub.url}) : ${res.items.length} article(s) reçu(s) de Vinted.`);
             const isFirstSync = db.get('is_first_sync');
             const lastItemTimestamp = db.get(`last_item_ts_${sub.id}`);
             const items = res.items
@@ -207,7 +208,7 @@ const syncSubscription = (sub) => {
 
             resolve();
         }).catch((e) => {
-            console.error('Search returned an error. Promise resolved.', e);
+            console.error(`❌ Erreur de recherche pour ${sub.id} (${sub.marque || sub.url}) :`, e);
             resolve();
         });
     });
