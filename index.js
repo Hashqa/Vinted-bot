@@ -1,6 +1,10 @@
 require('dotenv').config();
 const config = require('./config.json');
 
+process.on('unhandledRejection', (err) => {
+    console.error('Erreur non gérée (le bot continue de tourner) :', err);
+});
+
 const Database = require('easy-json-database');
 const db = new Database('./db.json');
 if (!db.has('subscriptions')) db.set('subscriptions', []);
@@ -288,7 +292,9 @@ client.on('interactionCreate', (interaction) => {
                 interaction.editReply(`:white_check_mark: Filtre créé ! Les articles **${marque}**${taille ? ` (taille ${taille})` : ''} à moins de **${prixMax}€** seront envoyés dans <#${channel.id}>.\n(ID de l'abonnement : ${sub.id})`);
             }).catch((e) => {
                 console.error('Impossible de créer le salon pour le filtre.', e);
-                interaction.editReply(':x: Impossible de créer le salon. Vérifiez que le bot a bien la permission "Gérer les salons" sur ce serveur.');
+                if (interaction.deferred || interaction.replied) {
+                    interaction.editReply(':x: Impossible de créer le salon. Vérifiez que le bot a bien la permission "Gérer les salons" sur ce serveur.').catch(() => {});
+                }
             });
             break;
         }
